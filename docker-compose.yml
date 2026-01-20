@@ -2,21 +2,20 @@ version: '3.8'
 
 services:
   frontend:
-    build: .  # 从前端目录构建镜像
-    # 或者使用预构建的镜像: image: registry.cn-hangzhou.aliyuncs.com/<你的命名空间>/txwl-platform-frontend:latest
+    build: .
     container_name: txwl-platform-frontend
     ports:
       - "80:80"
-    environment:
-      - BACKEND_HOST=backend
-      - BACKEND_PORT=8080
     restart: unless-stopped
     depends_on:
       - backend
+    networks:
+      - app-network
 
   backend:
-    build: ../../../TXWLPlatform-backend  # 从后端目录构建后端镜像
-    # 或者使用预构建的镜像: image: registry.cn-hangzhou.aliyuncs.com/<你的命名空间>/txwl-platform-backend:latest
+    build: ../TXWLPlatform-backend  # 调整为相对路径
+    # 或者使用绝对路径
+    # build: /path/to/TXWLPlatform-backend
     container_name: txwl-platform-backend
     ports:
       - "8080:8080"
@@ -30,22 +29,34 @@ services:
       - AI_API_ENDPOINT=${AI_API_ENDPOINT:-https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
       - AI_API_MODEL=${AI_API_MODEL:-qwen-flash}
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - app-network
 
   mysql:
     image: mysql:8.0
     container_name: txwl-mysql
-    ports:
-      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: admin
       MYSQL_DATABASE: txwl_platform
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./../../../TXWLPlatform-backend/src/main/resources/txwl_platform.SQL:/docker-entrypoint-initdb.d/1_txwl_platform.sql
-      - ./../../../TXWLPlatform-backend/src/main/resources/data_external/insert_questions.sql:/docker-entrypoint-initdb.d/2_insert_questions.sql
+      - ./init-sql:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
     restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   mysql_data:
+
+networks:
+  app-network:
+    driver: bridge

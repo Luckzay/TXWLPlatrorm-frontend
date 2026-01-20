@@ -13,4 +13,6 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  // 设置基础路径为根目录
+  base: '/'
 })

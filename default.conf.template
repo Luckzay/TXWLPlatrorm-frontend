@@ -1,0 +1,58 @@
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    server {
+        listen       80;
+        server_name  localhost;
+
+        # 设置根目录
+        root   /usr/share/nginx/html;
+        index  index.html;
+
+        # API 请求代理到后端
+        location /api {
+            proxy_pass http://$BACKEND_HOST:$BACKEND_PORT;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+            
+            # 设置代理超时
+            proxy_connect_timeout 10s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+        }
+
+        # 静态资源处理 - 优先匹配静态资源
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            gzip_static on;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            try_files $uri $uri/ =404;
+        }
+
+        # Vue Router History模式配置 - 处理SPA路由
+        location / {
+            try_files $uri $uri/ @fallback;
+        }
+
+        # 对于非文件请求，返回index.html以支持Vue Router
+        location @fallback {
+            rewrite ^.*$ /index.html last;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+}

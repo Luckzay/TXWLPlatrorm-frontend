@@ -11,8 +11,8 @@ http {
         server_name  localhost;
 
         # 设置根目录
-        root   /usr/share/nginx/html;
-        index  index.html;
+        root /usr/share/nginx/html;
+        index index.html;
 
         # API 请求代理到后端
         location /api {

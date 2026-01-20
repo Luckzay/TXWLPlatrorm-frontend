@@ -9,9 +9,9 @@ RUN apk add --no-cache python3 make g++
 # 复制package文件
 COPY package*.json ./
 
-# 清除npm缓存并配置淘宝镜像源以提高安装速度
+# 配置npm使用淘宝镜像源以提高安装速度，并使用--prefer-online避免缓存问题
 RUN npm config set registry https://registry.npmmirror.com/ && \
-    npm config set cache-max 0
+    npm config set prefer-online true
 
 # 安装依赖 - 使用--force参数确保即使有警告也能安装
 RUN npm install --force

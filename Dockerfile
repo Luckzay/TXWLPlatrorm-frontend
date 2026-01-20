@@ -1,11 +1,24 @@
-# 使用Node.js基础镜像构建应用
+# 使用较新的Node.js LTS版本镜像
 FROM node:18-alpine AS builder
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
 
+# 安装构建所需的工具
+RUN apk add --no-cache python3 make g++
+
+# 复制package文件
+COPY package*.json ./
+
+# 配置npm使用淘宝镜像源以提高安装速度（特别是在国内环境）
+RUN npm config set registry https://registry.npmmirror.com/
+
+# 安装依赖 - 使用legacy-peer-deps参数解决对等依赖问题
+RUN npm install --legacy-peer-deps
+
+# 复制源代码
 COPY . .
+
+# 构建应用
 RUN npm run build
 
 # 使用Nginx作为生产服务器

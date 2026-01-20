@@ -9,11 +9,10 @@ RUN apk add --no-cache python3 make g++
 # 复制package文件
 COPY package*.json ./
 
-# 配置npm使用淘宝镜像源以提高安装速度，并使用--prefer-online避免缓存问题
-RUN npm config set registry https://registry.npmmirror.com/ && \
-    npm config set prefer-online true
+# 配置npm使用淘宝镜像源
+RUN npm config set registry https://registry.npmmirror.com/
 
-# 安装依赖 - 使用--force参数确保即使有警告也能安装
+# 安装依赖
 RUN npm install --force
 
 # 复制源代码
@@ -25,12 +24,10 @@ RUN npm run build
 # 使用Nginx作为生产服务器
 FROM nginx:alpine
 
-# 安装模板处理工具
-RUN apk add --no-cache gettext
-
+# 复制构建产物
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 复制nginx配置文件（使用模板）
+# 复制nginx配置模板
 COPY default.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80

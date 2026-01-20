@@ -2,61 +2,19 @@ version: '3.8'
 
 services:
   frontend:
-    build: .
-    container_name: txwl-platform-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: txwl_frontend
     ports:
       - "80:80"
-    restart: unless-stopped
-    depends_on:
-      - backend
-    networks:
-      - app-network
-
-  backend:
-    build: ../TXWLPlatform-backend  # 调整为相对路径
-    # 或者使用绝对路径
-    # build: /path/to/TXWLPlatform-backend
-    container_name: txwl-platform-backend
-    ports:
-      - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/txwl_platform
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=admin
-      - SERVER_PORT=8080
-      - AI_API_KEY=${AI_API_KEY:-sk-68ba763917d04a5e96c263b37f2c2258}
-      - AI_API_ENDPOINT=${AI_API_ENDPOINT:-https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
-      - AI_API_MODEL=${AI_API_MODEL:-qwen-flash}
-    depends_on:
-      mysql:
-        condition: service_healthy
+      # 这里设置后端API地址（根据实际情况修改）
+      - BACKEND_API_URL=${BACKEND_API_URL:-http://localhost:8080}
     restart: unless-stopped
     networks:
-      - app-network
-
-  mysql:
-    image: mysql:8.0
-    container_name: txwl-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: admin
-      MYSQL_DATABASE: txwl_platform
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./init-sql:/docker-entrypoint-initdb.d
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
-    restart: unless-stopped
-    networks:
-      - app-network
-
-volumes:
-  mysql_data:
+      - frontend_network
 
 networks:
-  app-network:
+  frontend_network:
     driver: bridge

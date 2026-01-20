@@ -1,8 +1,21 @@
 import axios from 'axios'
 
+// 根据环境变量确定API基础URL
+let baseURL = 'http://localhost:8080/api'; // 默认本地开发地址
+
+// 在生产环境中使用相对路径或通过环境变量指定后端地址
+if (process.env.NODE_ENV === 'production') {
+  // 如果前端后端部署在同一主机上，可以使用相对路径或localhost
+  // 或者从环境变量中读取后端API地址
+  baseURL = window.location.protocol + '//' + window.location.hostname + ':8080/api';
+  
+  // 如果通过反向代理部署在同一域名下，可以使用相对路径
+  // baseURL = '/api';
+}
+
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api', // 后端API基础URL
+  baseURL: baseURL, // 后端API基础URL
   timeout: 10000, // 请求超时时间
 })
 

@@ -7,6 +7,9 @@ services:
     container_name: txwl-platform-frontend
     ports:
       - "80:80"
+    environment:
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=8080
     restart: unless-stopped
     depends_on:
       - backend

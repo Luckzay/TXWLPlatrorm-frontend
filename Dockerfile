@@ -24,8 +24,14 @@ RUN npm run build
 
 # 使用Nginx作为生产服务器
 FROM nginx:alpine
+
+# 安装模板处理工具
+RUN apk add --no-cache gettext
+
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf
+
+# 复制nginx配置文件（使用模板）
+COPY default.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 

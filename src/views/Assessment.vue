@@ -8,7 +8,7 @@
           <h2>{{ assessmentTitle }}</h2>
           <div class="assessment-info">
             <span>题目总数: {{ totalQuestions }}</span>
-            <span>当前: {{ currentPage }}/{{ totalPages }}</span>
+            <span>当前: {{ currentPage }}/{{ totalPages }} 页</span>
           </div>
         </div>
       </template>
@@ -91,6 +91,28 @@
                 拖拽文件到此处或<em>点击上传</em>
               </div>
             </el-upload>
+            
+            <!-- 排序题 -->
+            <div v-else-if="question.q_type === 'SORT'" class="sort-options">
+              <draggable
+                v-model="question.options"
+                item-key="id"
+                @change="onSortChange(question.id, question.options)"
+                ghost-class="sortable-ghost"
+                chosen-class="sortable-chosen"
+                drag-class="sortable-drag"
+              >
+                <template #item="{ element }">
+                  <div class="sort-item">
+                    <el-tag type="info" class="sort-rank">{{ getOptionRank(element, question.options) }}.</el-tag>
+                    <el-card class="sort-option" shadow="hover">
+                      <span>{{ element.content }}</span>
+                    </el-card>
+                  </div>
+                </template>
+              </draggable>
+              <p class="sort-instruction">拖拽选项以重新排序</p>
+            </div>
           </el-card>
         </div>
       </div>
@@ -130,6 +152,8 @@ import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import { Upload } from '@element-plus/icons-vue'
 import { authService } from '@/services/authService'
+import {useGlobalUser} from "@/composables/useGlobalUser";
+import draggable from 'vuedraggable';
 
 const router = useRouter()
 const route = useRoute()
@@ -155,7 +179,7 @@ const currentQuestions = computed(() => {
 // 页面加载时获取第一页题目
 onMounted(async () => {
   // 检查用户是否已登录
-  if (!authService.isAuthenticated()) {
+  if (!useGlobalUser.isAuthenticated.value) {
     ElMessage.warning('请先登录')
     router.push('/')
     return
@@ -204,6 +228,13 @@ const fetchQuestionsForPage = async (paperId, pageNum) => {
       questionsByPage.value[pageNum] = {
         questions: questions
       };
+      
+      // 将问题添加到所有问题列表中（去重）
+      questions.forEach(question => {
+        if (!allQuestions.value.some(q => q.id === question.id)) {
+          allQuestions.value.push(question);
+        }
+      });
 
       // 第一页加载时设置总题目数和总页数
       if (pageNum === 1) {
@@ -222,6 +253,11 @@ const fetchQuestionsForPage = async (paperId, pageNum) => {
           if (!(question.id in answers.value)) {
             answers.value[question.id] = 0;
           }
+        } else if (question.q_type === 'SORT') {
+          if (!(question.id in answers.value)) {
+            // 对于排序题，初始答案为选项的原始顺序，使用选项内容而非ID
+            answers.value[question.id] = question.options.map(option => option.content);
+          }
         } else {
           if (!(question.id in answers.value)) {
             answers.value[question.id] = '';
@@ -234,8 +270,28 @@ const fetchQuestionsForPage = async (paperId, pageNum) => {
     }
   } catch (error) {
     console.error('获取问卷题目失败:', error)
-    ElMessage.error('获取问卷题目失败')
-    router.push('/')
+    
+    // 区分错误类型
+    if (error.response) {
+      // 服务器返回了错误响应
+      if (error.response.status === 401 || error.response.status === 403) {
+        // 无权限访问
+        ElMessage.error('您没有权限访问此问卷或登录已过期')
+        router.push('/psychological-assessment') // 返回首页登录
+      } else if (error.response.status === 404) {
+        // 问卷不存在
+        ElMessage.error('问卷不存在')
+        router.push('/psychological-assessment')
+      } else {
+        // 其他服务器错误
+        ElMessage.error(`获取问卷题目失败: ${error.response.data.message || '服务器错误'}`)
+        router.push('/psychological-assessment')
+      }
+    } else {
+      // 网络错误或其他客户端错误
+      ElMessage.error('网络连接异常，无法获取问卷题目')
+      router.push('/psychological-assessment')
+    }
   }
 }
 
@@ -247,6 +303,17 @@ const getQuestionNumber = (indexInPage) => {
 // 答案变化处理
 const onAnswerChange = (questionId, value) => {
   answers.value[questionId] = value
+}
+
+// 排序题变化处理
+const onSortChange = (questionId, options) => {
+  // 更新答案为排序后的选项内容数组
+  answers.value[questionId] = options.map(option => option.content);
+}
+
+// 获取选项排序名次
+const getOptionRank = (option, options) => {
+  return options.findIndex(opt => opt.content === option.content) + 1;
 }
 
 // 文件上传处理
@@ -276,6 +343,10 @@ const isCurrentPageCompleted = () => {
       }
     } else if (question.q_type === 'SCORE') {
       if (!answer || answer === 0) {
+        return false;
+      }
+    } else if (question.q_type === 'SORT') {
+      if (!answer || answer.length === 0) {
         return false;
       }
     } else {
@@ -319,9 +390,25 @@ const nextPage = async () => {
 
 // 提交问卷
 const submitAssessment = async () => {
+  // 确保所有排序题的答案都是内容数组，不是ID数组
+  allQuestions.value.forEach(q => {
+    if (q.q_type === 'SORT') {
+      if (!answers.value[q.id] || answers.value[q.id].length === 0) {
+        // 如果排序题没有答案，使用原始顺序作为默认答案，保存选项内容而非ID
+        answers.value[q.id] = q.options ? q.options.map(option => option.content) : [];
+      } else if (typeof answers.value[q.id][0] === 'number') {
+        // 如果答案是ID数组，转换为内容数组
+        answers.value[q.id] = q.options ? q.options.map(option => option.content) : [];
+      }
+    }
+  });
+  
   const unanswered = allQuestions.value.filter(q => {
     const answer = answers.value[q.id]
     if (q.q_type === 'MULTI') {
+      return !answer || answer.length === 0
+    }
+    if (q.q_type === 'SORT') {
       return !answer || answer.length === 0
     }
     return !answer || answer === '' || (typeof answer === 'number' && answer === 0)

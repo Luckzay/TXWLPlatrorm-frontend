@@ -3,7 +3,9 @@ import Home from '../views/Home.vue'
 import Assessment from '../views/Assessment.vue'
 import Reports from '../views/Reports.vue'
 import PsychologicalAssessment from '../views/PsychologicalAssessment.vue'
+import PaperManagement from "@/views/PaperManagement.vue";
 import { authService } from '@/services/authService'
+import {useGlobalUser} from "@/composables/useGlobalUser";
 
 const routes = [
   {
@@ -28,6 +30,12 @@ const routes = [
     path: '/psychological-assessment',
     name: 'PsychologicalAssessment',
     component: PsychologicalAssessment
+  },
+  {
+    path: '/paper-management',
+    name: 'PaperManagement',
+    component: PaperManagement,
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
@@ -38,10 +46,8 @@ const router = createRouter({
 
 // 路由守卫 - 检查是否需要登录
 router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth && !authService.isAuthenticated()) {
-    // 如果目标页面需要认证且用户未登录，则重定向到主页并显示提示
+  if (to.meta.requiresAuth && !authService.isAuthenticated.value) {
     next({ path: '/' })
-    // 在这里可以使用ElMessage或其他方式显示提示信息
     setTimeout(() => {
       // 这里模拟显示登录提示
       if (window.showLoginModal) {
@@ -50,6 +56,16 @@ router.beforeEach((to, from, next) => {
         alert('请先登录以访问此页面')
       }
     }, 100)
+  } else if (to.meta.requiresAdmin && authService.isAuthenticated.value) {
+    // 检查管理员权限 - 只有角色ID为1（超级管理员）或2（问卷管理员）可以访问
+    if ([1, 2].includes(useGlobalUser.state.roleId)) {
+      next();
+    } else {
+      next({ path: '/' });
+      setTimeout(() => {
+        alert('您没有权限访问此页面');
+      }, 100);
+    }
   } else {
     next()
   }

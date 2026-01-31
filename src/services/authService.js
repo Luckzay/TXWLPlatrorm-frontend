@@ -1,5 +1,17 @@
 import api from '@/utils/api';
-import { jwtDecode } from 'jwt-decode'; // 使用jwt-decode库解析JWT
+import { jwtDecode } from 'jwt-decode';
+import {ref} from "vue"; // 使用jwt-decode库解析JWT
+
+// 全局用户状态
+let globalCurrentUser = {
+  userUid: null,
+  username: '',
+  realname: '',
+  phone: '',
+  roleId: null
+};
+
+const isAuthenticatedRef = ref(!!localStorage.getItem('token'));
 
 export const authService = {
   // 获取当前用户信息
@@ -34,6 +46,10 @@ export const authService = {
     }
   },
 
+  get isAuthenticated() {
+    return isAuthenticatedRef; // 暴露给外部用
+  },
+
   // 登录
   login: async (identifier, password) => {
     try {
@@ -56,7 +72,7 @@ export const authService = {
         };
         
         localStorage.setItem('userInfo', JSON.stringify(userInfo));
-        
+        isAuthenticatedRef.value = true;
         return { success: true, userInfo, token: response.data.token };
       } else {
         throw new Error('登录失败：未获取到令牌');
@@ -114,10 +130,34 @@ export const authService = {
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
+    isAuthenticatedRef.value = false;
   },
 
-  // 检查是否已登录
-  isAuthenticated: () => {
-    return !!localStorage.getItem('token');
+
+  // 获取当前用户信息（全局状态）
+  getCurrentUser: () => {
+    return globalCurrentUser;
+  },
+
+  // 设置当前用户信息（更新全局状态）
+  setCurrentUser: (userData) => {
+    globalCurrentUser = {
+      userUid: userData.userUid || globalCurrentUser.userUid,
+      username: userData.username || userData.phone || globalCurrentUser.username,
+      realname: userData.realname || userData.username || userData.phone || globalCurrentUser.realname,
+      phone: userData.phone || globalCurrentUser.phone,
+      roleId: userData.roleId || globalCurrentUser.roleId
+    };
+  },
+
+  // 清除当前用户信息
+  clearCurrentUser: () => {
+    globalCurrentUser = {
+      userUid: null,
+      username: '',
+      realname: '',
+      phone: '',
+      roleId: null
+    };
   }
 };

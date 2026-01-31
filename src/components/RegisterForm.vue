@@ -20,8 +20,9 @@
         placeholder="请选择身份"
         style="width: 100%"
       >
-        <el-option label="学生" value="student" />
-        <el-option label="家长" value="parent" />
+        <el-option label="学生" value="STUDENT" />
+        <el-option label="妈妈" value="MATHER" />
+        <el-option label="爸爸" value="FATHER" />
       </el-select>
     </el-form-item>
     <el-form-item label="密码" prop="password">

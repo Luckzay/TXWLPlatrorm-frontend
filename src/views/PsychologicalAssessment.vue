@@ -58,6 +58,7 @@ import { ElMessage } from 'element-plus'
 import { Clock } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 import { authService } from '@/services/authService'
+import {useGlobalUser} from "@/composables/useGlobalUser";
 
 const router = useRouter()
 
@@ -146,7 +147,7 @@ const getPaperTypeName = (type) => {
 // 开始测评
 const startAssessment = async (paper) => {
   // 检查用户是否已登录
-  if (!authService.isAuthenticated()) {
+  if (!useGlobalUser.isAuthenticated.value) {
     ElMessage.warning('请先登录')
     router.push('/login')
     return

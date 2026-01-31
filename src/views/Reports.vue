@@ -80,6 +80,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import { authService } from '@/services/authService'
+import {useGlobalUser} from "@/composables/useGlobalUser";
 
 const router = useRouter()
 
@@ -93,7 +94,7 @@ const reportPreviewUrl = ref('')
 // 页面加载时获取报告列表
 onMounted(async () => {
   // 检查用户是否已登录
-  if (!authService.isAuthenticated()) {
+  if (!useGlobalUser.isAuthenticated.value) {
     ElMessage.warning('请先登录')
     router.push('/')
     return

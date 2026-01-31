@@ -5,8 +5,8 @@
         <div class="header-content">
           <h1 class="logo">同行未来新高考生涯规划平台</h1>
           <div class="user-actions">
-            <el-button v-if="!isLoggedIn" type="primary" @click="login">登录</el-button>
-            <el-button v-if="!isLoggedIn" type="success" @click="register">注册</el-button>
+            <el-button v-if="!useGlobalUser.isAuthenticated.value" type="primary" @click="login">登录</el-button>
+            <el-button v-if="!useGlobalUser.isAuthenticated.value" type="success" @click="register">注册</el-button>
             <el-dropdown v-else>
               <span class="el-dropdown-link">
                 {{ currentUser.realname || currentUser.username }} <el-icon><arrow-down /></el-icon>
@@ -14,6 +14,12 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="goToReports">我的报告</el-dropdown-item>
+                  <el-dropdown-item 
+                    v-if="currentUser && [1, 2].includes(currentUser.roleId)" 
+                    @click="goToPaperManagement"
+                  >
+                    问卷管理
+                  </el-dropdown-item>
                   <el-dropdown-item @click="logout">退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -46,12 +52,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import LoginForm from './components/LoginForm.vue'
 import RegisterForm from './components/RegisterForm.vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { authService } from '@/services/authService'
+import { useGlobalUser } from '@/composables/useGlobalUser'
+import {ElMessage} from "element-plus";
 
 const router = useRouter()
 
@@ -59,31 +67,17 @@ const router = useRouter()
 const showLoginDialog = ref(false)
 const showRegisterDialog = ref(false)
 
-// 用户状态
-const currentUser = reactive({
-  username: '',
-  realname: '',
-  uid: null,
-  roleId: null
-})
+// 用户状态 - 使用全局状态
+const currentUser = useGlobalUser.state
 
-// 计算属性
-const isLoggedIn = computed(() => {
-  return authService.isAuthenticated()
-})
 
 // 组件挂载时检查登录状态
 onMounted(() => {
-  if (isLoggedIn.value) {
+  if (useGlobalUser.isAuthenticated.value) {
     // 如果已登录，尝试获取用户信息
     try {
       const userInfo = authService.getCurrentUserFromToken();
-      Object.assign(currentUser, {
-        username: userInfo.username,
-        realname: userInfo.realname || userInfo.username,
-        uid: userInfo.uid,
-        roleId: userInfo.roleId
-      });
+      useGlobalUser.update(userInfo);
     } catch (error) {
       console.error('获取用户信息失败:', error);
     }
@@ -104,18 +98,13 @@ const register = () => {
 
 const logout = () => {
   authService.logout();
-  Object.assign(currentUser, {
-    username: '',
-    realname: '',
-    uid: null,
-    roleId: null
-  });
+  useGlobalUser.clear();
   router.push('/')
   window.location.reload()
 }
 
 const goToReports = () => {
-  if (!authService.isAuthenticated()) {
+  if (!useGlobalUser.isAuthenticated.value) {
     ElMessage.warning('请先登录')
     router.push('/')
     return
@@ -123,14 +112,26 @@ const goToReports = () => {
   router.push('/reports')
 }
 
+const goToPaperManagement = () => {
+  if (!useGlobalUser.isAuthenticated.value) {
+    ElMessage.warning('请先登录')
+    router.push('/')
+    return
+  }
+  
+  // 检查用户权限
+  if (![1, 2].includes(currentUser.roleId)) {
+    ElMessage.error('您没有权限访问此页面')
+    return
+  }
+  
+  router.push('/paper-management')
+}
+
 const handleLoginSuccess = (userData) => {
   showLoginDialog.value = false
-  Object.assign(currentUser, {
-    username: userData.username || userData.phone,
-    realname: userData.realname || userData.username || userData.phone,
-    uid: userData.uid,
-    roleId: userData.roleId
-  });
+  // 更新全局用户状态
+  useGlobalUser.update(userData);
   router.push('/')
 }
 

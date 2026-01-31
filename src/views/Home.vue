@@ -52,6 +52,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { DocumentChecked, TrendCharts, Management, Clock } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 import { authService } from '@/services/authService'
+import {useGlobalUser} from "@/composables/useGlobalUser";
 
 const router = useRouter()
 
@@ -69,7 +70,7 @@ const goToAssessmentSection = () => {
 // 跳转到报告页面
 const goToReportsSection = () => {
   // 检查用户是否已登录
-  if (!authService.isAuthenticated()) {
+  if (!useGlobalUser.isAuthenticated.value) {
     ElMessage.warning('请先登录')
     router.push('/')
     return
